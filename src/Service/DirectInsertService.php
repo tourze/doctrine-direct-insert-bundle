@@ -4,8 +4,10 @@ namespace Tourze\DoctrineDirectInsertBundle\Service;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Tourze\DoctrineEntityCheckerBundle\Service\SqlFormatter;
 
+#[Autoconfigure(public: true)]
 class DirectInsertService
 {
     public function __construct(
