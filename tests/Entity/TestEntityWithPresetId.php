@@ -6,14 +6,14 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'test_entity_preset_id')]
-class TestEntityWithPresetId
+#[ORM\Table(name: 'test_entity_preset_id', options: ['comment' => '预设ID测试实体'])]
+class TestEntityWithPresetId implements \Stringable
 {
     #[ORM\Id]
-    #[ORM\Column(type: Types::INTEGER)]
+    #[ORM\Column(type: Types::INTEGER, options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[ORM\Column(type: Types::STRING, length: 255, options: ['comment' => '名称'])]
     private string $name;
 
     public function getId(): ?int
@@ -34,5 +34,10 @@ class TestEntityWithPresetId
     public function setName(string $name): void
     {
         $this->name = $name;
+    }
+
+    public function __toString(): string
+    {
+        return $this->name;
     }
 } 

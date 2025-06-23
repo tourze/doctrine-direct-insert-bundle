@@ -7,33 +7,33 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'test_entity_all_types')]
-class TestEntityWithAllTypes
+#[ORM\Table(name: 'test_entity_all_types', options: ['comment' => '所有类型测试实体'])]
+class TestEntityWithAllTypes implements \Stringable
 {
     #[ORM\Id]
-    #[ORM\Column(type: Types::INTEGER)]
+    #[ORM\Column(type: Types::INTEGER, options: ['comment' => '主键ID'])]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::STRING)]
+    #[ORM\Column(type: Types::STRING, options: ['comment' => '字符串类型'])]
     private string $stringType;
 
-    #[ORM\Column(type: Types::TEXT)]
+    #[ORM\Column(type: Types::TEXT, options: ['comment' => '文本类型'])]
     private string $textType;
 
-    #[ORM\Column(type: Types::INTEGER)]
+    #[ORM\Column(type: Types::INTEGER, options: ['comment' => '整数类型'])]
     private int $integerType;
 
-    #[ORM\Column(type: Types::FLOAT)]
+    #[ORM\Column(type: Types::FLOAT, options: ['comment' => '浮点类型'])]
     private float $floatType;
 
-    #[ORM\Column(type: Types::BOOLEAN)]
+    #[ORM\Column(type: Types::BOOLEAN, options: ['comment' => '布尔类型'])]
     private bool $booleanType;
 
-    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '日期时间类型'])]
     private ?DateTimeImmutable $datetimeType = null;
 
-    #[ORM\Column(type: Types::STRING, nullable: true)]
+    #[ORM\Column(type: Types::STRING, nullable: true, options: ['comment' => '可空字符串'])]
     private ?string $nullableString = null;
 
     public function getId(): ?int
@@ -109,5 +109,10 @@ class TestEntityWithAllTypes
     public function setNullableString(?string $nullableString): void
     {
         $this->nullableString = $nullableString;
+    }
+
+    public function __toString(): string
+    {
+        return $this->stringType ?? 'TestEntityWithAllTypes#' . $this->id;
     }
 } 

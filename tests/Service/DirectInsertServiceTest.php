@@ -2,6 +2,7 @@
 
 namespace Tourze\DoctrineDirectInsertBundle\Tests\Service;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception as DbalException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -18,6 +19,7 @@ class DirectInsertServiceTest extends KernelTestCase
 {
     private EntityManagerInterface $entityManager;
     private DirectInsertService $service;
+    private Connection $connection;
 
     protected static function createKernel(array $options = []): KernelInterface
     {
@@ -49,13 +51,15 @@ class DirectInsertServiceTest extends KernelTestCase
         $this->assertIsNumeric($id);
         $this->assertGreaterThan(0, $id);
 
-        $this->entityManager->clear();
+        // 使用相同的连接直接查询
+        $result = $this->connection->fetchAssociative(
+            'SELECT * FROM test_entity WHERE id = ?',
+            [$id]
+        );
 
-        $persistedEntity = $this->entityManager->find(TestEntity::class, $id);
-
-        $this->assertNotNull($persistedEntity);
-        $this->assertInstanceOf(TestEntity::class, $persistedEntity);
-        $this->assertEquals('test name', $persistedEntity->getName());
+        $this->assertNotFalse($result);
+        $this->assertEquals($id, $result['id']);
+        $this->assertEquals('test name', $result['name']);
     }
 
     public function test_directInsert_withPresetId_usesProvidedId(): void
@@ -72,13 +76,15 @@ class DirectInsertServiceTest extends KernelTestCase
         // Assert
         $this->assertEquals($presetId, $returnedId);
 
-        $this->entityManager->clear();
+        // 使用相同的连接直接查询
+        $result = $this->connection->fetchAssociative(
+            'SELECT * FROM test_entity_preset_id WHERE id = ?',
+            [$presetId]
+        );
 
-        $persistedEntity = $this->entityManager->find(TestEntityWithPresetId::class, $presetId);
-
-        $this->assertNotNull($persistedEntity);
-        $this->assertEquals($presetId, $persistedEntity->getId());
-        $this->assertEquals('test with preset id', $persistedEntity->getName());
+        $this->assertNotFalse($result);
+        $this->assertEquals($presetId, $result['id']);
+        $this->assertEquals('test with preset id', $result['name']);
     }
 
     public function test_directInsert_withVariousDataTypes_persistsCorrectly(): void
@@ -98,16 +104,19 @@ class DirectInsertServiceTest extends KernelTestCase
         // Assert
         $this->assertIsNumeric($id);
 
-        $this->entityManager->clear();
-        $persistedEntity = $this->entityManager->find(TestEntityWithAllTypes::class, $id);
+        // 使用相同的连接直接查询
+        $result = $this->connection->fetchAssociative(
+            'SELECT * FROM test_entity_all_types WHERE id = ?',
+            [$id]
+        );
 
-        $this->assertNotNull($persistedEntity);
-        $this->assertEquals('a string', $persistedEntity->getStringType());
-        $this->assertEquals('a long text', $persistedEntity->getTextType());
-        $this->assertEquals(999, $persistedEntity->getIntegerType());
-        $this->assertEquals(123.45, $persistedEntity->getFloatType());
-        $this->assertTrue($persistedEntity->getBooleanType());
-        $this->assertNull($persistedEntity->getNullableString());
+        $this->assertNotFalse($result);
+        $this->assertEquals('a string', $result['string_type']);
+        $this->assertEquals('a long text', $result['text_type']);
+        $this->assertEquals(999, $result['integer_type']);
+        $this->assertEquals(123.45, (float)$result['float_type']);
+        $this->assertEquals(1, $result['boolean_type']); // SQLite 中布尔值存储为 0/1
+        $this->assertNull($result['nullable_string']);
     }
 
     public function test_directInsert_withDuplicatePrimaryKey_throwsDbalException(): void
@@ -135,18 +144,72 @@ class DirectInsertServiceTest extends KernelTestCase
         $container = self::getContainer();
         $this->entityManager = $container->get(EntityManagerInterface::class);
         $this->service = $container->get(DirectInsertService::class);
+        
+        // 获取 DirectInsertService 使用的连接
+        $reflectionClass = new \ReflectionClass($this->service);
+        $connectionProperty = $reflectionClass->getProperty('connection');
+        $connectionProperty->setAccessible(true);
+        $this->connection = $connectionProperty->getValue($this->service);
 
-        $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
+        // 确保测试实体被识别
+        $testEntities = [
+            TestEntity::class,
+            TestEntityWithAllTypes::class,
+            TestEntityWithPresetId::class,
+        ];
+        
+        $metadata = [];
+        foreach ($testEntities as $entityClass) {
+            $metadata[] = $this->entityManager->getClassMetadata($entityClass);
+        }
+        
+        // 在正确的连接上创建表
+        $platform = $this->connection->getDatabasePlatform();
         $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
-        $schemaTool->createSchema($metadata);
+        
+        // 获取 SQL 语句
+        $dropSqls = $schemaTool->getDropSchemaSQL($metadata);
+        $createSqls = $schemaTool->getCreateSchemaSql($metadata);
+        
+        // 在专用连接上执行 SQL
+        foreach ($dropSqls as $sql) {
+            try {
+                $this->connection->executeStatement($sql);
+            } catch (\Exception $e) {
+                // 忽略删除表时的错误
+            }
+        }
+        
+        foreach ($createSqls as $sql) {
+            $this->connection->executeStatement($sql);
+        }
     }
 
     protected function tearDown(): void
     {
-        $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
+        // 确保测试实体被识别
+        $testEntities = [
+            TestEntity::class,
+            TestEntityWithAllTypes::class,
+            TestEntityWithPresetId::class,
+        ];
+        
+        $metadata = [];
+        foreach ($testEntities as $entityClass) {
+            $metadata[] = $this->entityManager->getClassMetadata($entityClass);
+        }
+        
         $schemaTool = new SchemaTool($this->entityManager);
-        $schemaTool->dropSchema($metadata);
+        $dropSqls = $schemaTool->getDropSchemaSQL($metadata);
+        
+        // 在专用连接上执行 SQL
+        foreach ($dropSqls as $sql) {
+            try {
+                $this->connection->executeStatement($sql);
+            } catch (\Exception $e) {
+                // 忽略删除表时的错误
+            }
+        }
 
         self::ensureKernelShutdown();
         parent::tearDown();
