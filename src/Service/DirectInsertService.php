@@ -9,7 +9,7 @@ use Tourze\DoctrineDedicatedConnectionBundle\Attribute\WithDedicatedConnection;
 use Tourze\DoctrineEntityCheckerBundle\Service\SqlFormatter;
 
 #[Autoconfigure(public: true)]
-#[WithDedicatedConnection('direct_insert')]
+#[WithDedicatedConnection(channel: 'direct_insert')]
 class DirectInsertService
 {
     public function __construct(

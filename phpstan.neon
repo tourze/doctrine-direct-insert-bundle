@@ -1,0 +1,19 @@
+includes:
+    - ../../phpstan.neon
+
+parameters:
+    ignoreErrors:
+        # 忽略测试实体的测试覆盖率要求 - 这些是测试用的 fixture，不需要自己的测试
+        - 
+            message: '#Class Tourze\\DoctrineDirectInsertBundle\\Tests\\Entity\\TestEntity does not have a corresponding test class#'
+            path: tests/Entity/TestEntity.php
+        - 
+            message: '#Class Tourze\\DoctrineDirectInsertBundle\\Tests\\Entity\\TestEntityWithAllTypes does not have a corresponding test class#'
+            path: tests/Entity/TestEntityWithAllTypes.php
+        - 
+            message: '#Class Tourze\\DoctrineDirectInsertBundle\\Tests\\Entity\\TestEntityWithPresetId does not have a corresponding test class#'
+            path: tests/Entity/TestEntityWithPresetId.php
+        # DependencyInjection 扩展类通常不需要测试
+        - 
+            message: '#Class Tourze\\DoctrineDirectInsertBundle\\DependencyInjection\\DoctrineDirectInsertExtension does not have a corresponding test class#'
+            path: src/DependencyInjection/DoctrineDirectInsertExtension.php
