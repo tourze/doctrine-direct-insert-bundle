@@ -5,24 +5,17 @@ namespace Tourze\DoctrineDirectInsertBundle\Service;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
-use Tourze\DoctrineDedicatedConnectionBundle\Attribute\WithDedicatedConnection;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Tourze\DoctrineEntityCheckerBundle\Service\SqlFormatter;
 
 #[Autoconfigure(public: true)]
-#[WithDedicatedConnection(channel: 'direct_insert')]
-class DirectInsertService
+readonly class DirectInsertService
 {
     public function __construct(
-        private readonly SqlFormatter $sqlFormatter,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly Connection $connection,
-    )
-    {
-    }
-
-    private function getConnection(): Connection
-    {
-        return $this->entityManager->getConnection();
+        private SqlFormatter $sqlFormatter,
+        private EntityManagerInterface $entityManager,
+        #[Autowire(service: 'doctrine.dbal.direct_insert_connection')] private Connection $connection,
+    ) {
     }
 
     /**
@@ -33,11 +26,12 @@ class DirectInsertService
         [$tableName, $params] = $this->sqlFormatter->getObjectInsertSql($this->entityManager, $object);
 
         $this->connection->insert($tableName, $params);
-        if (!empty($params['id'])) {
+        if (isset($params['id']) && '' !== $params['id']) {
             $id = $params['id'];
         } else {
-            $id =  $this->connection->lastInsertId();
+            $id = $this->connection->lastInsertId();
         }
+
         return $id;
     }
 }
